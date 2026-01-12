@@ -1,12 +1,12 @@
-__version__ = (1, 0, 0)
+__version__ = (1, 1, 1)
 
 #  ======================================================================
 # Название модуля: [DailyReplyMod]
 # Версия: [1.0.0]
 # Описание: [Модуль для рассылки клановый афиши в бфг чатах.]
 # Автор: Heroku_Guard
-# Канал и контакты: @heroku_model, https://t.me/heroku_model
-# Дата создания: [07.12.2025]
+# Канал и контакты: @heroku_Guard, https://t.me/heroku_Guad
+# Дата создания: [12.01.2026]
 # ======================================================================
 #
 # Лицензия: MIT License
@@ -21,10 +21,8 @@ __version__ = (1, 0, 0)
 # убытков или проблем с программой, авторы или владельцы авторских прав
 # не несут ответственности.
 # ======================================================================
-# meta developer: @heroku_model
+# meta developer: @heroku_Guard
 
-import os
-import sys
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
@@ -192,7 +190,7 @@ class ClanAdvertMod(loader.Module):
 
     async def logclancmd(self, message: Message):
         """
-        Показать лог афиши 
+        Показать лог афиши 
         """
         msg = await utils.answer(message, "⏳ Загрузка лога...")
 
@@ -242,3 +240,52 @@ class ClanAdvertMod(loader.Module):
         self.tasks.clear()
 
         await utils.answer(message, self.strings["all_cleared"])
+
+    async def claninfocmd(self, message: Message):
+        """
+        Показать полную информацию о модуле Clan с корректными переносами
+        """
+        info_lines = [
+            "<emoji document_id=5116275208906343429>‼️</emoji>",
+            "<b><u>ОБЕЗАТЕЛЬНО ЧИТАЙТЕ ПОЛНОСТЬЮ</u></b>",
+            "<emoji document_id=5116275208906343429>‼️</emoji>",
+            "",
+            "<emoji document_id=5118454879039259395>❤️</emoji> Сдесь содержится полная информация этого модуля <emoji document_id=5118454879039259395>❤️</emoji>",
+            "",
+            "<blockquote><emoji document_id=5141109049114232089>1️⃣</emoji> "
+            "Если вы надумаете выгружать модуль сначала не забудьте его выключить, иначе реклама будет продолжать рассылаться.</blockquote>",
+            "",
+            "<blockquote><emoji document_id=5140871649091912628>2️⃣</emoji> "
+            "Если у вас длинная афиша клана текст вставлять таким способом:\n"
+            "<code>.fcfg Clan text1</code> &lt;пишите текст с афиши&gt;\n"
+            "<code>.fcfg Clan text2</code> &lt;пишите текст с афишей&gt;\n\n"
+            "Если же текст короткий то можно просто:\n"
+            "<code>.cfg Clan text1</code>\n"
+            "<code>.cfg Clan text2</code></blockquote>",
+            "",
+            "<blockquote><emoji document_id=5141399818400170896>3️⃣</emoji> "
+            "Как поставить текст афиши (обязательно кодом если присутствует премиум эмодзи).\n"
+            "Отправляете в любой чат афиши и в ответ на сообщение пишите <code>.e r.text</code></blockquote>",
+            "",
+            "<blockquote expandable> <emoji document_id=5138822752123225428>4️⃣</emoji> Все обозначения конфига.\n\n"
+            "1. Interval1 - Устанавливает КД для 1 чата. (КД - промежуток времени между рассылками)\n"
+
+            "2. Interval2 - Устанавливает КД для 2 чата.\n"
+
+            "3. Chat1 - Установка первого чата (ID или ссылка)\n"
+
+            "4. Chat2 - Установка второго чата (ID или ссылка)\n"
+
+            "5. text1 - Текст рекламы для первого чата\n"
+
+            "6. text2 - Текст рекламы для второго чата\n"
+
+            "7. photo1 - Фото для первого чата (<a href=\"https://x0.at/\">ссылка на фото</a>)\n"
+
+            "8. photo2 - Фото для второго чата (<a href=\"https://x0.at/\">ссылка на фото</a>)</blockquote>",
+            "",
+            "<emoji document_id=5116275208906343429>‼️</emoji> Прочтите все внимательно чтобы не было лишних вопросов <emoji document_id=5116275208906343429>‼️</emoji>"
+        ]
+
+        info_text = "\n".join(info_lines)
+        await utils.answer(message, info_text)
