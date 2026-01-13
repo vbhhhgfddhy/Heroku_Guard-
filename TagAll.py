@@ -15,14 +15,12 @@ from ..inline.types import InlineCall
 
 logger = logging.getLogger(__name__)
 
-
 class StopEvent:
     def __init__(self):
         self.state = True
 
     def stop(self):
         self.state = False
-
 
 @loader.tds
 class TagAllMod(loader.Module):
@@ -57,6 +55,7 @@ class TagAllMod(loader.Module):
             loader.ConfigValue("cycle_tagging", False, "Cycle tagging until stopped", validator=loader.validators.Boolean()),
             loader.ConfigValue("cycle_delay", 0, "Delay between cycles", validator=loader.validators.Integer(minimum=0)),
             loader.ConfigValue("exclusions", {}, "List of user IDs to exclude per chat"),
+            loader.ConfigValue("tag_limit", 100, "Maximum number of users to tag at a time", validator=loader.validators.Integer(minimum=1))
         )
 
     async def cancel(self, call: InlineCall, event: StopEvent):
@@ -96,14 +95,19 @@ class TagAllMod(loader.Module):
 
         first, br = True, False
         while True if self.config["cycle_tagging"] else first:
-            for chunk in utils.chunks(
-                [
-                    f'<a href="tg://user?id={user.id}">\xad</a>'
-                    async for user in self._client.iter_participants(message.peer_id)
-                    if str(user.id) not in self.config["exclusions"].get(str(chat_id), {})
-                ],
-                5,
-            ):
+            # Получаем участников чата, исключая тех, кто в списке исключений
+            participants = [
+                f'<a href="tg://user?id={user.id}">\xad</a>'
+                async for user in self._client.iter_participants(message.peer_id)
+                if str(user.id) not in self.config["exclusions"].get(str(chat_id), {})
+            ]
+
+            # Применяем лимит
+            tag_limit = self.config["tag_limit"]
+            participants = participants[:tag_limit]  # Ограничиваем количество участников
+
+            # Отправляем сообщения
+            for chunk in utils.chunks(participants, 5):
                 m = await (
                     self.inline.bot.send_message
                     if self.config["use_bot"]
