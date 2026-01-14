@@ -1,6 +1,3 @@
-# meta developer: @codermasochist
-# О боже, какой же Асса ахуенний, он такой крутой и красивый, я не магу... Умний, стильний, харизьматичный — в нём всьо иделяльно. Он всегда делает шота крутое, и за ним невозможна не восхишяться.
-
 from telethon.tl.types import Message
 from ..inline.types import InlineCall
 from .. import loader, utils
@@ -53,9 +50,9 @@ class BFGIM(loader.Module):
             ],
             [{"text": "закрыть", "callback": self.close_menu}]
         ]
-        
+
         text = f"<b>выберите для игрока:</b>\n<code>{user_id}</code>"
-        
+
         if is_inline:
             await call.edit(text, reply_markup=buttons)
         else:
@@ -116,8 +113,127 @@ class BFGIM(loader.Module):
 
     async def close_menu(self, call: InlineCall):
         await call.delete()
-    
+
     async def show_result(self, call: InlineCall, user_id, result, back_callback=None):
         back_btn = [{"text": "назад", "callback": back_callback, "args": (user_id,)}] if back_callback else \
-                   [{"text": "назад", "callback": self.show_main_menu, "args": (user_id,)}]
+                  [{"text": "назад", "callback": self.show_main_menu, "args": (user_id,)}]
         await call.edit(f"<b>Результат:</b>\n\n{result}", reply_markup=[back_btn])
+
+
+    @loader.command()
+    async def профиль(self, message: Message):
+        """Показывает профиль игрока."""
+        args = utils.get_args(message)
+        
+        # Проверяем, если аргументы пустые
+        if not args:
+            # Если это ответ на сообщение, берем sender_id
+            if message.is_reply:
+                reply = await message.get_reply_message()
+                user_id = reply.sender_id
+            else:
+                await utils.answer(message, "Укажите ID пользователя или ответьте на его сообщение.")
+                return
+        else:
+            user_id = args[0] if args[0].isdigit() else None
+            if not user_id:
+                await utils.answer(message, "Укажите правильный ID пользователя.")
+                return
+
+        result = await self.execute_command(f"профиль {user_id}")
+        await utils.answer(message, f"Профиль пользователя {user_id}:\n\n{result}")
+
+    @loader.command()
+    async def чс(self, message: Message):
+        """Показывает информацию о черном списке пользователя."""
+        args = utils.get_args(message)
+        
+        if not args:
+            if message.is_reply:
+                reply = await message.get_reply_message()
+                user_id = reply.sender_id
+            else:
+                await utils.answer(message, "Укажите ID пользователя или ответьте на его сообщение.")
+                return
+        else:
+            user_id = args[0] if args[0].isdigit() else None
+            if not user_id:
+                await utils.answer(message, "Укажите правильный ID пользователя.")
+                return
+
+        result = await self.execute_command(f"информация о чс {user_id}")
+        await utils.answer(message, f"Информация о чс для пользователя {user_id}:\n\n{result}")
+
+    @loader.command()
+    async def пригласить(self, message: Message):
+        """Приглашает пользователя в клан."""
+        args = utils.get_args(message)
+        
+        if not args:
+            if message.is_reply:
+                reply = await message.get_reply_message()
+                user_id = reply.sender_id
+            else:
+                await utils.answer(message, "Укажите ID пользователя или ответьте на его сообщение.")
+                return
+        else:
+            user_id = args[0] if args[0].isdigit() else None
+            if not user_id:
+                await utils.answer(message, "Укажите правильный ID пользователя.")
+                return
+
+        bfg_id = await self.get_bfg_id(user_id)
+        if not bfg_id:
+            await utils.answer(message, f"Не удалось получить BFG ID для пользователя {user_id}.")
+            return
+
+        result = await self.execute_command(f"клан пригласить {bfg_id}")
+        await utils.answer(message, f"Результат приглашения игрока {user_id} в клан:\n\n{result}")
+
+    @loader.command()
+    async def кик(self, message: Message):
+        """Исключает пользователя из клана."""
+        args = utils.get_args(message)
+        
+        if not args:
+            if message.is_reply:
+                reply = await message.get_reply_message()
+                user_id = reply.sender_id
+            else:
+                await utils.answer(message, "Укажите ID пользователя или ответьте на его сообщение.")
+                return
+        else:
+            user_id = args[0] if args[0].isdigit() else None
+            if not user_id:
+                await utils.answer(message, "Укажите правильный ID пользователя.")
+                return
+
+        bfg_id = await self.get_bfg_id(user_id)
+        if not bfg_id:
+            await utils.answer(message, f"Не удалось получить BFG ID для пользователя {user_id}.")
+            return
+
+        result = await self.execute_command(f"клан исключить {bfg_id}")
+        await utils.answer(message, f"Результат исключения игрока {user_id} из клана:\n\n{result}")
+
+    @loader.command()
+    async def ид(self, message: Message):
+        """Получает ID пользователя в BFG и Telegram."""
+        args = utils.get_args(message)
+        
+        if not args:
+            if message.is_reply:
+                reply = await message.get_reply_message()
+                user_id = reply.sender_id
+            else:
+                await utils.answer(message, "Укажите ID пользователя или ответьте на его сообщение.")
+                return
+        else:
+            user_id = args[0] if args[0].isdigit() else None
+            if not user_id:
+                await utils.answer(message, "Укажите правильный ID пользователя.")
+                return
+
+        bfg_id = await self.get_bfg_id(user_id) or "не найден"
+        text = f"<b>Telegram ID:</b> <code>{user_id}</code>\n\n<b>BFG ID:</b> <code>{bfg_id}</code>"
+        await utils.answer(message, text)
