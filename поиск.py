@@ -1,17 +1,41 @@
+# meta developer: @ModuliBFG_canal 
+
+# ======================================================================
+# Название модуля: [поиск]
+# Версия: [2.0.0]
+# Описание: [ищит модули в канале.]
+# Автор: Heroku_Guard
+# Канал и контакты: @ModuliBFG_canal, https://t.me/ModuliBFG_canal
+# Дата создания: [16.01.2026]
+# ======================================================================
+#
+# Лицензия: MIT License
+# Copyright (c) 2025 Heroku_Guard
+#
+# Для подробной информации о лицензии см. файл LICENSE:
+# https://raw.githubusercontent.com/vbhhhgfddhy/Heroku_model/refs/heads/main/LICENSE
+#
+# Эта программа предоставляется "как есть", без каких-либо гарантий, явных
+# или подразумеваемых, включая, но не ограничиваясь, гарантии товарной
+# пригодности и пригодности для конкретной цели. В случае возникновения
+# убытков или проблем с программой, авторы или владельцы авторских прав
+# не несут ответственности.
+# ======================================================================
+
+import os
+import sys
 import re
 from .. import loader, utils
-from herokutl.tl.custom import Button  # кнопки
+from herokutl.tl.custom import Button         
 
 @loader.tds
 class BFGModuleSearch(loader.Module):
-    """Поиск модулей по названию, описанию, командам и установке в темах 88 и 58"""
+    """Поиск модулей по названию, описанию и командам строго в одном канале"""
     strings = {"name": "поиск"}
 
     def __init__(self):
-        self.topic_links = [
-            "https://t.me/ModuliBFG/53",
-            "https://t.me/ModuliBFG/88"
-        ]
+        # Канал для поиска
+        self.channel = "ModuliBFG_canal"
         self.last_results = {}
 
     @loader.command(ru_doc="Ищет модуль по названию, описанию или команде")
@@ -22,17 +46,17 @@ class BFGModuleSearch(loader.Module):
             return
 
         user_id = message.sender_id
+        self.last_results.pop(user_id, None) 
         results = []
 
-        for link in self.topic_links:
-            username, _ = self._parse_link(link)
-            try:
-                async for msg in self._client.iter_messages(username, limit=500):
-                    module_info = self._parse_module(msg)
-                    if module_info and self._match_query(query, module_info):
-                        results.append(module_info)
-            except Exception:
-                continue
+        try:
+            async for msg in self._client.iter_messages(self.channel, limit=1000):
+                module_info = self._parse_module(msg)
+                if module_info and self._match_query(query, module_info):
+                    results.append(module_info)
+        except Exception:
+            await message.edit("❌ Ошибка при получении сообщений из канала.")
+            return
 
         if not results:
             await message.edit("❌ Модуль не найден")
@@ -57,7 +81,7 @@ class BFGModuleSearch(loader.Module):
             line = line.strip()
             if not line:
                 continue
-            parts = line.split(maxsplit=1)  # команда + описание
+            parts = line.split(maxsplit=1)
             cmd = parts[0]
             desc = parts[1] if len(parts) > 1 else ""
             if desc:
@@ -80,7 +104,7 @@ class BFGModuleSearch(loader.Module):
         )
 
         buttons = [[Button.inline("🔄 Поменять результат", f"heta_next:{user_id}")]]
-        
+
         if "msg_id" in data:
             try:
                 await self._client.edit_message(
@@ -101,7 +125,7 @@ class BFGModuleSearch(loader.Module):
                 data = self.last_results[user_id]
                 data["index"] = (data["index"] + 1) % len(data["results"])
                 await self._send_result(user_id)
-            await update.answer() 
+            await update.answer()
 
     def _parse_module(self, msg):
         """Парсинг сообщения модуля"""
@@ -109,11 +133,11 @@ class BFGModuleSearch(loader.Module):
         if not text:
             return None
 
-        name_match = re.search(r"Название:\s*(.+)", text, re.IGNORECASE)
-        desc_match = re.search(r"Описание:\s*(.+)", text, re.IGNORECASE)
-        commands_match = re.search(r"Команды:\s*([\s\S]*?)(?:\nУстановка|$)", text, re.IGNORECASE)
-        install_match = re.search(r"Установка:\s*(.+)", text, re.IGNORECASE)
-        ps_match = re.search(r"P\.S\s*—\s*(.+)", text, re.IGNORECASE)
+        name_match = re.search(r"Название[:\-]?\s*(.+)", text, re.IGNORECASE)
+        desc_match = re.search(r"Описание[:\-]?\s*(.+)", text, re.IGNORECASE)
+        commands_match = re.search(r"Команды[:\-]?\s*([\s\S]*?)(?:\nУстановка|$)", text, re.IGNORECASE)
+        install_match = re.search(r"Установка[:\-]?\s*(.+)", text, re.IGNORECASE)
+        ps_match = re.search(r"P\.S\s*[:\-]?\s*(.+)", text, re.IGNORECASE)
 
         if not name_match:
             return None
@@ -128,11 +152,4 @@ class BFGModuleSearch(loader.Module):
 
     def _match_query(self, query, module_info):
         q = query.lower()
-        return any(q in (module_info.get(k, "").lower()) for k in ["name", "description", "commands"])
-
-    def _parse_link(self, link: str):
-        """Возвращает username и message_id из ссылки вида https://t.me/ModuliBFG/53"""
-        parts = link.rstrip("/").split("/")
-        username = parts[-2]
-        msg_id = int(parts[-1])
-        return username, msg_id
+        return any(q in (module_info.get(k, "").lower().replace("\n", " ")) for k in ["name", "description", "commands"])
