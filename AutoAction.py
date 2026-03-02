@@ -37,28 +37,35 @@ logger = logging.getLogger(__name__)
 
 @loader.tds
 class SeparateAutoMod(loader.Module):
-    """Production-версия авто-Арены и Подземелья"""
+    """Стабильная авто-Арена и Подземелье"""
 
     strings = {
         "name": "AutoAction",
-        "started_arena": "✅ Авто-арена запущена!",
-        "started_dungeon": "✅ Авто-подземелье запущено!",
-        "stopped_arena": "⛔ Авто-арена остановлена!",
-        "stopped_dungeon": "⛔ Авто-подземелье остановлено!",
-        "invalid_arg": "‼️ Используй on/off",
+
+        "help": "🛠 <b>Команды:</b>\n"
+                ".арена on/off\n"
+                ".подземелье on/off\n"
+                ".логи\n"
+                ".задачи",
+
+        "started_arena": "<emoji document_id=5123248930124989216>✅</emoji> Авто-арена запущена!",
+        "started_dungeon": "<emoji document_id=5123248930124989216>✅</emoji> Авто-подземелье запущено!",
+        "stopped_arena": "<emoji document_id=5100657930429006538>♥️</emoji> Авто-арена остановлена!",
+        "stopped_dungeon": "<emoji document_id=5100657930429006538>♥️</emoji> Авто-подземелье остановлено!",
+        "invalid_arg": "<emoji document_id=5116275208906343429>‼️</emoji> Используй on/off",
     }
 
     def __init__(self):
         self.config = loader.ModuleConfig(
             loader.ConfigValue(
                 "arena_interval",
-                41,
+                40,
                 lambda: "Интервал арены (мин)",
                 validator=loader.validators.Integer(),
             ),
             loader.ConfigValue(
                 "dungeon_interval",
-                181,
+                180,
                 lambda: "Интервал подземелья (мин)",
                 validator=loader.validators.Integer(),
             ),
@@ -66,14 +73,21 @@ class SeparateAutoMod(loader.Module):
 
         self.bot_id = 6216165773
 
+        
         self.arena_task = None
         self.dungeon_task = None
 
+        
         self.arena_stop = asyncio.Event()
         self.dungeon_stop = asyncio.Event()
 
+        
         self.next_arena_run = None
         self.next_dungeon_run = None
+
+        
+        self.arena_logs = []
+        self.dungeon_logs = []
 
     async def client_ready(self, client, db):
         self._client = client
@@ -117,6 +131,39 @@ class SeparateAutoMod(loader.Module):
         else:
             await utils.answer(message, self.strings["invalid_arg"])
 
+    async def логиcmd(self, message: Message):
+        await utils.answer(
+            message,
+            "<b>📜 Последние 5 действий:</b>\n\n"
+            "<b>Арена:</b>\n"
+            + ("\n".join(self.arena_logs) if self.arena_logs else "Нет данных")
+            + "\n\n<b>Подземелье:</b>\n"
+            + ("\n".join(self.dungeon_logs) if self.dungeon_logs else "Нет данных")
+        )
+
+    async def задачиcmd(self, message: Message):
+
+        def format_status(task, next_run):
+            if not task or task.done():
+                return "<emoji document_id=5121063440311386962>👎</emoji> Выключено"
+
+            if next_run:
+                delta = next_run - datetime.now()
+                minutes = max(0, int(delta.total_seconds() // 60))
+                return (
+                    "<emoji document_id=5123163417326126159>✅</emoji> Включено\n"
+                    f"<emoji document_id=5116163917713769254>⭐️</emoji> Запуск через {minutes} мин."
+                )
+
+            return "<emoji document_id=5123163417326126159>✅</emoji> Работает..."
+
+        await utils.answer(
+            message,
+            "<emoji document_id=5116116063188157350>🥷</emoji> <b>Статус модулей:</b>\n\n"
+            f"<b>Арена:</b> {format_status(self.arena_task, self.next_arena_run)}\n\n"
+            f"<b>Подземелье:</b> {format_status(self.dungeon_task, self.next_dungeon_run)}"
+        )
+
     async def _start_arena(self):
         if self.arena_task and not self.arena_task.done():
             return
@@ -155,20 +202,18 @@ class SeparateAutoMod(loader.Module):
 
         self.next_dungeon_run = None
 
-
     async def _arena_loop(self):
         try:
             while not self.arena_stop.is_set():
 
                 await self._safe_send("арена")
-
                 await asyncio.sleep(2)
 
-                bot_msg = await self._client.get_messages(self.bot_id, limit=1)
-                if not bot_msg:
+                messages = await self._client.get_messages(self.bot_id, limit=1)
+                if not messages:
                     continue
 
-                bot_msg = bot_msg[0]
+                bot_msg = messages[0]
                 attempts = self._parse_attempts(bot_msg.raw_text)
 
                 for _ in range(attempts):
@@ -186,13 +231,15 @@ class SeparateAutoMod(loader.Module):
                         self.bot_id, ids=bot_msg.id
                     )
 
+                self._add_log("arena", f"Успешно ({attempts} боев)")
+
                 interval = self.config["arena_interval"] * 60
                 self.next_arena_run = datetime.now() + timedelta(seconds=interval)
 
                 try:
                     await asyncio.wait_for(
                         self.arena_stop.wait(),
-                        timeout=interval,
+                        timeout=interval
                     )
                 except asyncio.TimeoutError:
                     pass
@@ -201,6 +248,7 @@ class SeparateAutoMod(loader.Module):
             pass
         except Exception as e:
             logger.exception("Arena crash:", exc_info=e)
+            self._add_log("arena", f"Ошибка: {str(e)[:20]}")
         finally:
             self.next_arena_run = None
 
@@ -208,15 +256,14 @@ class SeparateAutoMod(loader.Module):
         try:
             while not self.dungeon_stop.is_set():
 
-                await self._safe_send("арена")
-
+                await self._safe_send("подземелье")
                 await asyncio.sleep(2)
 
-                bot_msg = await self._client.get_messages(self.bot_id, limit=1)
-                if not bot_msg:
+                messages = await self._client.get_messages(self.bot_id, limit=1)
+                if not messages:
                     continue
 
-                bot_msg = bot_msg[0]
+                bot_msg = messages[0]
 
                 sequence = [6, 1, 1, 2, 2, 6, 2, 1, 2, 2]
 
@@ -244,13 +291,15 @@ class SeparateAutoMod(loader.Module):
                     await bot_msg.click(data=buttons[btn_index - 1].data)
                     await asyncio.sleep(2.5)
 
+                self._add_log("dungeon", "Успешно")
+
                 interval = self.config["dungeon_interval"] * 60
                 self.next_dungeon_run = datetime.now() + timedelta(seconds=interval)
 
                 try:
                     await asyncio.wait_for(
                         self.dungeon_stop.wait(),
-                        timeout=interval,
+                        timeout=interval
                     )
                 except asyncio.TimeoutError:
                     pass
@@ -259,6 +308,7 @@ class SeparateAutoMod(loader.Module):
             pass
         except Exception as e:
             logger.exception("Dungeon crash:", exc_info=e)
+            self._add_log("dungeon", f"Ошибка: {str(e)[:20]}")
         finally:
             self.next_dungeon_run = None
 
@@ -266,7 +316,6 @@ class SeparateAutoMod(loader.Module):
         try:
             await self._client.send_message(self.bot_id, text)
         except FloodWaitError as e:
-            logger.warning(f"FloodWait {e.seconds}s")
             await asyncio.sleep(e.seconds + 1)
         except Exception as e:
             logger.error(f"Send error: {e}")
@@ -278,6 +327,19 @@ class SeparateAutoMod(loader.Module):
             return int(text.split("Попыток:")[1].strip().split("\n")[0])
         except:
             return 0
+
+    def _add_log(self, mode, text):
+        now = datetime.now().strftime("%H:%M:%S")
+        log = f"[{now}] {text}"
+
+        if mode == "arena":
+            self.arena_logs.append(log)
+            if len(self.arena_logs) > 5:
+                self.arena_logs.pop(0)
+        else:
+            self.dungeon_logs.append(log)
+            if len(self.dungeon_logs) > 5:
+                self.dungeon_logs.pop(0)
 
     async def _click_button(self, msg, btn_num):
         msg = await self._client.get_messages(self.bot_id, ids=msg.id)
