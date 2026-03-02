@@ -256,7 +256,7 @@ class SeparateAutoMod(loader.Module):
         try:
             while not self.dungeon_stop.is_set():
 
-                await self._safe_send("подземелье")
+                await self._safe_send("арена ")
                 await asyncio.sleep(2)
 
                 messages = await self._client.get_messages(self.bot_id, limit=1)
